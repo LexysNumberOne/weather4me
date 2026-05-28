@@ -3,7 +3,7 @@ name: OpenWeather 5-day Forecast to Tailscale
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 */6 * * *'
+    - cron: '0 4 * * *'
 
 jobs:
   send-forecast:

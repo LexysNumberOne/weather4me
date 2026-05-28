@@ -1,0 +1,46 @@
+name: OpenWeather 5-day Forecast to Tailscale
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 */6 * * *'
+
+jobs:
+  send-forecast:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Tailscale
+        run: |
+          curl -fsSL https://tailscale.com/install.sh | sh
+
+      - name: Authenticate with Tailscale
+        run: |
+          sudo tailscale up --authkey "${{ secrets.TAILSCALE_AUTHKEY }}" --hostname github-actions-openweather
+
+      - name: Fetch 5-day forecast for Sakarya Kocaali
+        run: |
+          curl -fsSL "https://api.openweathermap.org/data/2.5/forecast?q=Sakarya,Kocaali,TR&appid=${{ secrets.OPENWEATHER_API_KEY }}&units=metric" \
+            -o forecast.json
+          cat forecast.json
+
+      - name: Send forecast to Tailscale destination
+        env:
+          DEST_URL: ${{ secrets.TAILSCALE_DEST_URL }}
+        run: |
+          if [ -z "$DEST_URL" ]; then
+            echo "Error: TAILSCALE_DEST_URL secret is not set."
+            exit 1
+          fi
+
+          curl -fsSL -X POST "$DEST_URL" \
+            -H 'Content-Type: application/json' \
+            --data-binary @forecast.json
+
+      - name: Shutdown Tailscale
+        if: always()
+        run: |
+          sudo tailscale down || true
